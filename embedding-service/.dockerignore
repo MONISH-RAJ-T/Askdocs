@@ -1,0 +1,20 @@
+# Ignore virtual environments
+venv/
+.venv/
+env/
+
+# Ignore local configuration files
+.env
+.env.example
+
+# Ignore compiled python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore repository configs
+.git/
+.gitignore
+.dockerignore
+README.md

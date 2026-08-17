@@ -1,0 +1,39 @@
+# Ignore virtual environments
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+embedding-service/venv/
+
+# Ignore environment config secrets files
+.env
+.env.local
+.env.*.local
+backend/.env
+embedding-service/.env
+
+# Ignore python caches and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Ignore node modules and build outputs
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Local scratch and testing directories
+scratch/
+Testing/
+
+# Documentation and project reports
+features
+features_analysis.md
