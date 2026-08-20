@@ -37,3 +37,7 @@ Testing/
 # Documentation and project reports
 features
 features_analysis.md
+
+# Hugging Face Space Clones
+askdocs-embedding/
+
