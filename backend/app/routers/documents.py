@@ -96,11 +96,15 @@ def trigger_processing(document_id: str, user: User = Depends(get_current_user))
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         # Reset status if trigger failed
+        print(f"CRITICAL ERROR in trigger_processing: {str(e)}")
+        import traceback
+        traceback.print_exc()
         db_service.update_document_status(document_id, "failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to initiate background parsing: {str(e)}"
         )
+
 
 @router.get("/{document_id}/status")
 def get_status(document_id: str, user: User = Depends(get_current_user)):
