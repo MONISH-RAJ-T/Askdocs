@@ -12,6 +12,7 @@ interface Document {
   error_message?: string
   page_count?: number
   chunk_count?: number
+  folder_id?: string | null
 }
 
 interface DocumentListProps {

@@ -20,7 +20,9 @@ interface Document {
   error_message?: string
   page_count?: number
   chunk_count?: number
+  folder_id?: string | null
 }
+
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
