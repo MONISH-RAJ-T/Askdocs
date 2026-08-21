@@ -4,6 +4,7 @@ from app.config import settings
 class EmbeddingClient:
     def __init__(self):
         self.base_url = settings.hf_embedding_url.rstrip("/")
+        print(f"DEBUG: EmbeddingClient initialized with base_url: '{self.base_url}'")
         # Verify header shared secret
         self.headers = {
             "X-HF-API-Key": settings.hf_api_secret_key,
@@ -11,6 +12,7 @@ class EmbeddingClient:
         }
         # Configure a generous 60-second read timeout for Hugging Face cold starts
         self.timeout = httpx.Timeout(60.0, connect=10.0)
+
 
     def get_query_embedding(self, query: str) -> list[float]:
         """
