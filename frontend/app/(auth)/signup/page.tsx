@@ -65,9 +65,7 @@ export default function SignUpPage() {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
         <div className="flex justify-center items-center gap-3">
-          <div className="bg-gradient-to-tr from-blue-600 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
-            <FileText className="w-8 h-8 text-white" />
-          </div>
+          <img src="/favicon.png" alt="AskDocs Logo" className="w-12 h-12 object-contain" />
           <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             AskDocs
           </span>

@@ -9,6 +9,9 @@ import DocumentList from '@/components/DocumentList'
 import ChatWindow from '@/components/ChatWindow'
 import MyDocumentsView from '@/components/MyDocumentsView'
 import FoldersView from '@/components/FoldersView'
+import dynamic from 'next/dynamic'
+
+const PdfViewer = dynamic(() => import('@/components/PdfViewer'), { ssr: false })
 import { LogOut, FileText, Bot, Upload, Loader2, RefreshCw, MessageSquare, Folder, Settings, Search, MoreVertical, ChevronDown, Plus, Layout, HardDrive, Filter, Download, Trash2, Sun, Moon, PanelLeft } from 'lucide-react'
 
 interface Document {
@@ -39,11 +42,13 @@ export default function DashboardPage() {
   const [folders, setFolders] = useState<any[]>([])
   const [showPdf, setShowPdf] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
-  const [activeTab, setActiveTab] = useState<'chat' | 'documents' | 'folders'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'documents' | 'folders'>('documents')
   const [chatConversations, setChatConversations] = useState<any[]>([])
   const [activeChatConversationId, setActiveChatConversationId] = useState<string | null>(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(false)
 
   // Custom premium modal and toast states
   const [toasts, setToasts] = useState<{ id: string, message: string, type: 'success' | 'error' | 'info' }[]>([])
@@ -194,6 +199,7 @@ export default function DashboardPage() {
     } else {
       setPdfUrl(null)
     }
+    setShowPdf(false)
   }, [selectedDoc])
 
   const fetchPdfUrl = async (docId: string) => {
@@ -419,74 +425,111 @@ export default function DashboardPage() {
   return (
     <main className="h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white flex relative overflow-hidden font-sans">
       
+      {/* Backdrop for mobile navigation drawer */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 z-45 bg-zinc-950/40 backdrop-blur-sm md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      
       {/* 1. Far Left Nav Sidebar */}
-      <nav className={`${isSidebarCollapsed ? 'w-20' : 'w-20 md:w-64'} transition-all duration-300 ease-in-out bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col items-center md:items-start shrink-0 z-20`}>
-        <div className={`p-4 md:p-6 w-full border-b border-zinc-100 dark:border-zinc-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-center md:justify-start'} gap-3`}>
-          <div className="bg-violet-600 p-2 rounded-lg shrink-0">
-            <Bot className="w-5 h-5 text-white" />
-          </div>
-          <h1 className={`text-sm font-bold text-zinc-900 dark:text-white ${isSidebarCollapsed ? 'hidden' : 'hidden md:block'}`}>AskDocs</h1>
+      <nav className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col items-start shrink-0 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      } ${
+        isSidebarCollapsed ? 'md:w-20 md:items-center' : 'md:w-64 md:items-start'
+      }`}>
+        <div className={`p-4 md:p-6 w-full border-b border-zinc-100 dark:border-zinc-800 flex items-center ${isSidebarCollapsed ? 'md:justify-center' : 'justify-start'} gap-3`}>
+          <img src="/favicon.png" alt="AskDocs Logo" className="w-8 h-8 object-contain rounded-full shrink-0" />
+          <h1 className={`text-sm font-bold text-zinc-900 dark:text-white ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>AskDocs</h1>
         </div>
 
         <div className="flex-1 w-full flex flex-col gap-2 p-3 md:p-4">
           <button 
-            onClick={() => setShowUploadModal(true)}
-            className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors mb-2 shadow-sm ${isSidebarCollapsed ? 'justify-center px-3' : ''}`}
+            onClick={() => {
+              setShowUploadModal(true)
+              setIsMobileMenuOpen(false)
+            }}
+            className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors mb-2 shadow-sm ${isSidebarCollapsed ? 'md:justify-center px-3' : 'justify-start'}`}
             title="Upload PDF"
           >
             <Upload className="w-5 h-5 shrink-0" />
-            <span className={`text-sm ${isSidebarCollapsed ? 'hidden' : 'hidden md:block'}`}>Upload PDF</span>
+            <span className={`text-sm ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>Upload PDF</span>
           </button>
 
-          <button 
-            onClick={() => setActiveTab('chat')}
-            className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl font-semibold transition-colors ${
-              activeTab === 'chat' 
-                ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700' 
-                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950 font-medium'
-            } ${isSidebarCollapsed ? 'justify-center px-3' : ''}`}
-            title="Chat"
-          >
-            <MessageSquare className="w-5 h-5 shrink-0" />
-            <span className={`text-sm ${isSidebarCollapsed ? 'hidden' : 'hidden md:block'}`}>Chat</span>
-          </button>
+          {selectedDoc && (
+            <button 
+              onClick={() => {
+                setActiveTab('chat')
+                setIsMobileMenuOpen(false)
+              }}
+              className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl font-semibold transition-colors ${
+                activeTab === 'chat' 
+                  ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700' 
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-955 font-medium'
+              } ${isSidebarCollapsed ? 'md:justify-center px-3' : 'justify-start'}`}
+              title="Chat"
+            >
+              <MessageSquare className="w-5 h-5 shrink-0" />
+              <span className={`text-sm ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>Chat</span>
+            </button>
+          )}
           
           <button 
-            onClick={() => setActiveTab('documents')}
+            onClick={() => {
+              setActiveTab('documents')
+              setIsMobileMenuOpen(false)
+            }}
             className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl transition-colors ${
               activeTab === 'documents' 
                 ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 font-semibold' 
                 : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950 font-medium'
-            } ${isSidebarCollapsed ? 'justify-center px-3' : ''}`}
+            } ${isSidebarCollapsed ? 'md:justify-center px-3' : 'justify-start'}`}
             title="My Documents"
           >
             <FileText className="w-5 h-5 shrink-0" />
-            <span className={`text-sm ${isSidebarCollapsed ? 'hidden' : 'hidden md:block'}`}>My Documents</span>
+            <span className={`text-sm ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>My Documents</span>
           </button>
           
           <button 
-            onClick={() => setActiveTab('folders')}
+            onClick={() => {
+              setActiveTab('folders')
+              setIsMobileMenuOpen(false)
+            }}
             className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl transition-colors ${
               activeTab === 'folders' 
                 ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 font-semibold' 
                 : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950 font-medium'
-            } ${isSidebarCollapsed ? 'justify-center px-3' : ''}`}
+            } ${isSidebarCollapsed ? 'md:justify-center px-3' : 'justify-start'}`}
             title="Folders"
           >
             <Folder className="w-5 h-5 shrink-0" />
-            <span className={`text-sm ${isSidebarCollapsed ? 'hidden' : 'hidden md:block'}`}>Folders</span>
+            <span className={`text-sm ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>Folders</span>
           </button>
-          <button onClick={() => showToast('Settings module coming soon', 'info')} className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:bg-zinc-950 transition-colors font-medium ${isSidebarCollapsed ? 'justify-center px-3' : ''}`} title="Settings">
+          <button 
+            onClick={() => {
+              showToast('Settings module coming soon', 'info')
+              setIsMobileMenuOpen(false)
+            }} 
+            className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:bg-zinc-955 transition-colors font-medium ${isSidebarCollapsed ? 'md:justify-center px-3' : 'justify-start'}`} 
+            title="Settings"
+          >
             <Settings className="w-5 h-5 shrink-0" />
-            <span className={`text-sm ${isSidebarCollapsed ? 'hidden' : 'hidden md:block'}`}>Settings</span>
+            <span className={`text-sm ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>Settings</span>
           </button>
         </div>
         
         <div className="p-4 w-full border-t border-zinc-100 dark:border-zinc-800 mt-auto flex flex-col gap-2">
-
-          <button onClick={handleLogout} className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium ${isSidebarCollapsed ? 'justify-center px-3' : ''}`} title="Logout">
+          <button 
+            onClick={() => {
+              handleLogout()
+              setIsMobileMenuOpen(false)
+            }} 
+            className={`w-full flex items-center gap-3 px-3 md:px-4 py-3 rounded-xl text-zinc-600 dark:text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium ${isSidebarCollapsed ? 'md:justify-center px-3' : 'justify-start'}`} 
+            title="Logout"
+          >
             <LogOut className="w-5 h-5 shrink-0" />
-            <span className={`text-sm ${isSidebarCollapsed ? 'hidden' : 'hidden md:block'}`}>Logout</span>
+            <span className={`text-sm ${isSidebarCollapsed ? 'md:hidden' : 'block'}`}>Logout</span>
           </button>
         </div>
       </nav>
@@ -499,7 +542,13 @@ export default function DashboardPage() {
           
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setIsMobileMenuOpen(!isMobileMenuOpen)
+                } else {
+                  setIsSidebarCollapsed(!isSidebarCollapsed)
+                }
+              }}
               className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
               title="Toggle Sidebar"
             >
@@ -541,74 +590,74 @@ export default function DashboardPage() {
                   onConversationsChange={setChatConversations}
                   onActiveConversationChange={setActiveChatConversationId}
                   externalActiveConversationId={activeChatConversationId}
+                  isRightPanelOpen={isRightPanelOpen}
+                  onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
+                  documents={documents}
+                  onSelectDocument={setSelectedDoc}
+                  onUploadSuccess={handleUploadSuccess}
                 />
                 
-                {/* PDF Modal/Overlay */}
+                {/* PDF Viewer — react-pdf for native mobile scroll support */}
                 {showPdf && pdfUrl && (
-                  <div className="absolute inset-0 z-50 bg-white dark:bg-zinc-900/95 backdrop-blur-sm p-6 flex flex-col shadow-2xl m-6 rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                    <div className="flex justify-between items-center mb-4 bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800">
-                      <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-red-500" />
-                        {selectedDoc?.name}
-                      </h3>
-                      <button onClick={() => setShowPdf(false)} className="text-sm font-semibold text-zinc-500 hover:text-zinc-800 bg-zinc-100 hover:bg-zinc-200 px-4 py-1.5 rounded-lg transition-colors">
-                        Close PDF
-                      </button>
-                    </div>
-                    <div className="flex-1 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-inner bg-zinc-100">
-                      <iframe 
-                        src={pdfUrl} 
-                        className="w-full h-full border-0"
-                        title="PDF Preview"
-                      />
-                    </div>
-                  </div>
+                  <PdfViewer
+                    url={pdfUrl}
+                    documentName={selectedDoc?.name}
+                    onClose={() => setShowPdf(false)}
+                  />
                 )}
               </section>
 
-              {/* Column 4: Right Sidebar (Chat History & Doc Info) */}
-              <section className="w-72 bg-zinc-50 dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0 h-full overflow-y-auto custom-scrollbar p-6 space-y-6">
-                
-                {/* Chat History Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
-                  <h3 className="text-xs font-bold text-zinc-900 dark:text-white mb-4">Chat History</h3>
-                  
-                  {!selectedDoc ? (
-                    <div className="text-center py-6 text-zinc-400 text-xs">
-                      No document selected
-                    </div>
-                  ) : chatConversations.length === 0 ? (
-                    <div className="text-center py-6 text-zinc-400 text-xs">
-                      No previous chats
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {chatConversations.map(conv => (
-                        <button
-                          key={conv.id}
-                          onClick={() => setActiveChatConversationId(conv.id)}
-                          className={`w-full text-left p-3 rounded-xl transition-colors ${
-                            activeChatConversationId === conv.id
-                              ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-500/20'
-                              : 'hover:bg-zinc-50 dark:hover:bg-zinc-950 text-zinc-700 dark:text-zinc-300 border border-transparent'
-                          }`}
-                        >
-                          <div className="text-xs font-semibold truncate mb-1">{conv.title || 'Untitled Chat'}</div>
-                          <div className="text-[10px] text-zinc-500">
-                            {new Date(conv.created_at).toLocaleDateString()}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+              {/* Backdrop and Column 4: Right Sidebar (Chat History & Doc Info) - Only when document is selected */}
+              {selectedDoc && (
+                <>
+                  {isRightPanelOpen && (
+                    <div 
+                      className="fixed inset-0 z-30 bg-zinc-950/40 backdrop-blur-sm lg:hidden"
+                      onClick={() => setIsRightPanelOpen(false)}
+                    />
                   )}
-                </div>
 
-                {/* Document Info Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
-                  <h3 className="text-xs font-bold text-zinc-900 dark:text-white mb-4">Document Info</h3>
-                  
-                  {selectedDoc ? (
-                    <>
+                  <section className={`fixed inset-y-0 right-0 z-40 w-72 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0 h-full overflow-y-auto custom-scrollbar p-6 space-y-6 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:bg-zinc-50 lg:dark:bg-zinc-950 ${
+                    isRightPanelOpen ? 'translate-x-0' : 'translate-x-full'
+                  }`}>
+                    
+                    {/* Chat History Card */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
+                      <h3 className="text-xs font-bold text-zinc-900 dark:text-white mb-4">Chat History</h3>
+                      
+                      {chatConversations.length === 0 ? (
+                        <div className="text-center py-6 text-zinc-400 text-xs">
+                          No previous chats
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {chatConversations.map(conv => (
+                            <button
+                              key={conv.id}
+                              onClick={() => {
+                                setActiveChatConversationId(conv.id)
+                                setIsRightPanelOpen(false)
+                              }}
+                              className={`w-full text-left p-3 rounded-xl transition-colors ${
+                                activeChatConversationId === conv.id
+                                  ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-500/20'
+                                  : 'hover:bg-zinc-50 dark:hover:bg-zinc-950 text-zinc-700 dark:text-zinc-300 border border-transparent'
+                              }`}
+                            >
+                              <div className="text-xs font-semibold truncate mb-1">{conv.title || 'Untitled Chat'}</div>
+                              <div className="text-[10px] text-zinc-500">
+                                {new Date(conv.created_at).toLocaleDateString()}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Document Info Card */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
+                      <h3 className="text-xs font-bold text-zinc-900 dark:text-white mb-4">Document Info</h3>
+                      
                       <div className="flex items-start gap-3 mb-4">
                         <div className="bg-red-50 p-2 rounded-lg shrink-0">
                           <FileText className="w-4 h-4 text-red-500" />
@@ -635,15 +684,11 @@ export default function DashboardPage() {
                       >
                         <FileText className="w-3.5 h-3.5" /> View Full PDF
                       </button>
-                    </>
-                  ) : (
-                    <div className="text-center py-6 text-zinc-400 text-xs">
-                      No document selected
                     </div>
-                  )}
-                </div>
 
-              </section>
+                  </section>
+                </>
+              )}
             </>
           )}
 
@@ -655,6 +700,14 @@ export default function DashboardPage() {
               onMoveToFolder={handleMoveToFolder}
               onUploadSuccess={(docId, filename) => {
                  handleUploadSuccess(docId, filename)
+                 const uploadedDoc = {
+                   id: docId,
+                   name: filename,
+                   file_size: 0,
+                   status: 'pending',
+                   created_at: new Date().toISOString()
+                 }
+                 setSelectedDoc(uploadedDoc)
                  setActiveTab('chat')
               }}
               onSelectDocument={(doc) => {
@@ -676,6 +729,8 @@ export default function DashboardPage() {
                 setActiveTab('chat')
               }}
               onConfirm={showConfirmModal}
+              onMoveToFolder={handleMoveToFolder}
+              onUploadSuccess={handleUploadSuccess}
             />
           )}
 
@@ -695,6 +750,14 @@ export default function DashboardPage() {
             <div className="p-6 bg-zinc-50 dark:bg-zinc-950/50">
               <UploadZone onUploadSuccess={(docId, filename) => {
                 handleUploadSuccess(docId, filename)
+                const uploadedDoc = {
+                  id: docId,
+                  name: filename,
+                  file_size: 0,
+                  status: 'pending',
+                  created_at: new Date().toISOString()
+                }
+                setSelectedDoc(uploadedDoc)
                 setShowUploadModal(false)
                 setActiveTab('chat')
               }} />

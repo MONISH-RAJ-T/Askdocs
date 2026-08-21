@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { fetchWithAuth } from '@/lib/api'
 import ChatBubble from './ChatBubble'
-import { Send, Loader2, Bot, User, Trash2, Plus, StopCircle, MessageSquare } from 'lucide-react'
+import UploadZone from './UploadZone'
+import { Send, Loader2, Bot, User, Trash2, Plus, StopCircle, MessageSquare, Info, FileText } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -17,6 +18,11 @@ interface ChatWindowProps {
   onConversationsChange?: (conversations: any[]) => void
   onActiveConversationChange?: (id: string | null) => void
   externalActiveConversationId?: string | null
+  isRightPanelOpen?: boolean
+  onToggleRightPanel?: () => void
+  documents?: any[]
+  onSelectDocument?: (doc: any) => void
+  onUploadSuccess?: (docId: string, filename: string) => void
 }
 
 export default function ChatWindow({ 
@@ -25,7 +31,12 @@ export default function ChatWindow({
   onViewPdfClick,
   onConversationsChange,
   onActiveConversationChange,
-  externalActiveConversationId
+  externalActiveConversationId,
+  isRightPanelOpen,
+  onToggleRightPanel,
+  documents = [],
+  onSelectDocument,
+  onUploadSuccess
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [conversations, setConversations] = useState<any[]>([])
@@ -313,14 +324,67 @@ export default function ChatWindow({
 
   if (!activeDocumentId) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-zinc-900 min-h-0 border border-zinc-100 dark:border-zinc-800 rounded-2xl shadow-sm">
-        <div className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 p-6 rounded-3xl mb-4 shadow-sm animate-pulse">
-          <Bot className="w-12 h-12 text-zinc-300 dark:text-zinc-700" />
+      <div className="flex-1 flex flex-col p-6 md:p-10 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl shadow-sm overflow-y-auto">
+        <div className="max-w-2xl mx-auto w-full space-y-10 my-auto py-8">
+          {/* Welcome Area */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex p-3.5 bg-violet-600/10 dark:bg-violet-500/10 rounded-2xl text-violet-600 dark:text-violet-400 mb-2">
+              <Bot className="w-10 h-10 animate-pulse" />
+            </div>
+            <h3 className="text-2xl md:text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+              AskDocs Workspace
+            </h3>
+            <p className="text-xs md:text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
+              Ask questions, summarize key findings, and extract insights from your PDF files. Get started by uploading a new file or picking an existing one below.
+            </p>
+          </div>
+
+          {/* Upload Box */}
+          <div className="space-y-3 max-w-lg mx-auto w-full">
+            <h4 className="text-xs font-bold text-zinc-450 dark:text-zinc-500 uppercase tracking-wider text-center">
+              Upload PDF Document
+            </h4>
+            {onUploadSuccess && <UploadZone onUploadSuccess={onUploadSuccess} />}
+          </div>
+
+          {/* Recent Files List */}
+          {documents && documents.length > 0 && (
+            <div className="space-y-4 max-w-lg mx-auto w-full pt-6 border-t border-zinc-100 dark:border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-zinc-450 dark:text-zinc-550 uppercase tracking-wider">
+                  Or select an existing document
+                </h4>
+                {documents.length > 4 && (
+                  <span className="text-[10px] text-zinc-450 dark:text-zinc-500 font-semibold">
+                    Showing 4 of {documents.length} files
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {documents.slice(0, 4).map(doc => (
+                  <div
+                    key={doc.id}
+                    onClick={() => onSelectDocument?.(doc)}
+                    className="flex items-center gap-3 p-3.5 bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:border-violet-500 dark:hover:border-violet-500/50 hover:shadow-sm cursor-pointer transition-all group"
+                  >
+                    <div className="p-2 bg-violet-50 dark:bg-violet-500/10 rounded-lg text-violet-600 dark:text-violet-400 group-hover:bg-violet-600 group-hover:text-white transition-all shrink-0">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h5 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                        {doc.name}
+                      </h5>
+                      <p className="text-[9px] text-zinc-405 dark:text-zinc-500 font-mono mt-0.5">{(doc.file_size / 1024).toFixed(1)} KB</p>
+                    </div>
+                    <span className="text-[10px] text-violet-600 dark:text-violet-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Chat →
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-1.5">No Active Document</h3>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm leading-relaxed">
-          Select an uploaded PDF from the sidebar or drop a new file below to start chatting with the AI.
-        </p>
       </div>
     )
   }
@@ -328,7 +392,7 @@ export default function ChatWindow({
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm relative min-h-0">
       {/* Header bar */}
-      <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800 px-6 py-4 flex items-center justify-between gap-4 z-10">
+      <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 z-10">
         <div className="min-w-0 flex-1">
           <h3 className="text-xs font-bold text-zinc-900 dark:text-white truncate">
             Chatting with: <span className="font-mono text-violet-600 dark:text-violet-400">{activeDocumentName}</span>
@@ -340,7 +404,7 @@ export default function ChatWindow({
         </div>
 
         {/* Sessions & Actions Toolbar */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 justify-between sm:justify-start">
 
           <button
             onClick={() => setActiveConversationId(null)}
@@ -366,6 +430,20 @@ export default function ChatWindow({
               title="Clear Messages"
             >
               <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+
+          {onToggleRightPanel && (
+            <button
+              onClick={onToggleRightPanel}
+              className={`lg:hidden p-1.5 rounded-lg transition-all ${
+                isRightPanelOpen 
+                  ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300' 
+                  : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+              }`}
+              title="Chat History & Info"
+            >
+              <Info className="w-4 h-4" />
             </button>
           )}
         </div>

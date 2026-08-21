@@ -87,14 +87,14 @@ export default function ChatBubble({ role, content }: ChatBubbleProps) {
               return <ol className="list-decimal pl-6 my-2.5 space-y-1 text-sm leading-relaxed">{children}</ol>
             },
             li({ children }) {
-              return <li className="text-zinc-800 dark:text-zinc-100">{children}</li>
+              return <li className={isUser ? 'text-white' : 'text-zinc-800 dark:text-zinc-100'}>{children}</li>
             },
             p({ children }) {
-              return <p className="mb-2 last:mb-0 leading-relaxed text-sm text-zinc-700 dark:text-zinc-300">{children}</p>
+              return <p className={`mb-2 last:mb-0 leading-relaxed text-sm ${isUser ? 'text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>{children}</p>
             },
-            h1({ children }) { return <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-3 mb-2">{children}</h1> },
-            h2({ children }) { return <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mt-3 mb-1">{children}</h2> },
-            h3({ children }) { return <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-100 mt-2 mb-1">{children}</h3> }
+            h1({ children }) { return <h1 className={`text-lg font-bold mt-3 mb-2 ${isUser ? 'text-white' : 'text-zinc-900 dark:text-zinc-100'}`}>{children}</h1> },
+            h2({ children }) { return <h2 className={`text-base font-bold mt-3 mb-1 ${isUser ? 'text-white' : 'text-zinc-900 dark:text-zinc-100'}`}>{children}</h2> },
+            h3({ children }) { return <h3 className={`text-sm font-bold mt-2 mb-1 ${isUser ? 'text-white' : 'text-zinc-800 dark:text-zinc-100'}`}>{children}</h3> }
           }}
         >
           {content}

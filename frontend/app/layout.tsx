@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "AskDocs - PDF Chatbot",
   description: "Securely upload and chat with your digital PDF documents using local vector embeddings and Groq LLM",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

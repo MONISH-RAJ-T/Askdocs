@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Folder, FileText, ChevronRight, Trash2, Plus, Loader2 } from 'lucide-react'
+import UploadZone from './UploadZone'
 
 interface FoldersViewProps {
   documents: any[]
@@ -8,6 +9,8 @@ interface FoldersViewProps {
   onDeleteFolder: (id: string) => void
   onSelectDocument: (doc: any) => void
   onConfirm: (options: any) => void
+  onMoveToFolder: (docId: string, folderId: string | null) => Promise<any>
+  onUploadSuccess: (docId: string, filename: string, folderId: string | null) => void
 }
 
 export default function FoldersView({
@@ -16,9 +19,15 @@ export default function FoldersView({
   onCreateFolder,
   onDeleteFolder,
   onSelectDocument,
-  onConfirm
+  onConfirm,
+  onMoveToFolder,
+  onUploadSuccess
 }: FoldersViewProps) {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addMode, setAddMode] = useState<'upload' | 'existing'>('upload')
+  const [selectedExistingDocId, setSelectedExistingDocId] = useState('')
+  const [isAssigning, setIsAssigning] = useState(false)
 
   const activeFolder = folders.find(f => f.id === selectedFolderId)
   const folderDocuments = activeFolder 
@@ -45,7 +54,7 @@ export default function FoldersView({
     <div className="flex-1 flex overflow-hidden bg-zinc-50 dark:bg-zinc-950">
       
       {/* Left pane: Folders List */}
-      <div className="w-1/3 min-w-[250px] border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col h-full">
+      <div className={`${selectedFolderId ? 'hidden md:flex' : 'w-full flex'} md:w-1/3 min-w-[250px] border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col h-full`}>
         <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
           <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Folders</h2>
           <button 
@@ -102,17 +111,33 @@ export default function FoldersView({
       </div>
 
       {/* Right pane: Documents in Folder */}
-      <div className="flex-1 flex flex-col h-full bg-zinc-50 dark:bg-zinc-950">
+      <div className={`${selectedFolderId ? 'w-full flex' : 'hidden md:flex'} flex-col h-full bg-zinc-50 dark:bg-zinc-950`}>
         {activeFolder ? (
           <>
-            <div className="p-6 md:p-10 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-                <Folder className="w-6 h-6 text-violet-500" />
-                {activeFolder.name}
-              </h2>
-              <p className="text-zinc-500 dark:text-zinc-400 mt-2 text-sm">
-                Contains {folderDocuments.length} documents
-              </p>
+            <div className="p-6 md:p-10 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setSelectedFolderId(null)}
+                  className="md:hidden p-2 text-zinc-500 hover:text-zinc-805 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors font-semibold text-xs flex items-center gap-1.5"
+                >
+                  ← Back
+                </button>
+                <h2 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
+                  <Folder className="w-6 h-6 text-violet-500" />
+                  {activeFolder.name}
+                </h2>
+              </div>
+              <div className="flex items-center gap-4 justify-between sm:justify-start">
+                <p className="text-zinc-500 dark:text-zinc-400 text-sm font-semibold">
+                  Contains {folderDocuments.length} documents
+                </p>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add PDF
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6 md:p-10">
@@ -162,6 +187,125 @@ export default function FoldersView({
           </div>
         )}
       </div>
+      {/* Quick Add Document Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[150] bg-zinc-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col overflow-hidden animate-scale-up">
+            <div className="p-5 border-b border-zinc-105 dark:border-zinc-800 flex items-center justify-between">
+              <h3 className="font-bold text-zinc-900 dark:text-white">Add Document to {activeFolder.name}</h3>
+              <button 
+                onClick={() => {
+                  setShowAddModal(false)
+                  setAddMode('upload')
+                  setSelectedExistingDocId('')
+                }} 
+                className="text-zinc-400 hover:text-zinc-700 p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Selector tabs */}
+            <div className="flex border-b border-zinc-100 dark:border-zinc-800">
+              <button
+                onClick={() => setAddMode('upload')}
+                className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${
+                  addMode === 'upload'
+                    ? 'border-violet-600 text-violet-600 dark:text-violet-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-650'
+                }`}
+              >
+                Upload New PDF
+              </button>
+              <button
+                onClick={() => setAddMode('existing')}
+                className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 ${
+                  addMode === 'existing'
+                    ? 'border-violet-600 text-violet-600 dark:text-violet-400'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-650'
+                }`}
+              >
+                Choose Existing PDF
+              </button>
+            </div>
+
+            <div className="p-6 bg-zinc-50 dark:bg-zinc-950/50 flex-1">
+              {addMode === 'upload' ? (
+                <UploadZone
+                  onUploadSuccess={async (docId, filename) => {
+                    setIsAssigning(true)
+                    try {
+                      // 1. Assign to current folder first
+                      await onMoveToFolder(docId, activeFolder.id)
+                      // 2. Call parent success handler
+                      onUploadSuccess(docId, filename, activeFolder.id)
+                      setShowAddModal(false)
+                    } catch (err) {
+                      console.error("Failed to assign folder to uploaded doc:", err)
+                    } finally {
+                      setIsAssigning(false)
+                    }
+                  }}
+                />
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-semibold">
+                    Select a document from your library that is not currently in any folder:
+                  </p>
+                  
+                  {/* Filtered list: documents where folder_id is null */}
+                  {documents.filter(doc => !doc.folder_id).length === 0 ? (
+                    <div className="text-center py-8 text-zinc-450 dark:text-zinc-500 text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                      No documents available. All existing documents are already in other folders.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <select
+                        value={selectedExistingDocId}
+                        onChange={(e) => setSelectedExistingDocId(e.target.value)}
+                        className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm text-zinc-900 dark:text-white"
+                      >
+                        <option value="">-- Choose a PDF --</option>
+                        {documents
+                          .filter(doc => !doc.folder_id)
+                          .map(doc => (
+                            <option key={doc.id} value={doc.id}>
+                              {doc.name} ({(doc.file_size / 1024).toFixed(0)} KB)
+                            </option>
+                          ))
+                        }
+                      </select>
+
+                      <div className="flex justify-end pt-2">
+                        <button
+                          disabled={!selectedExistingDocId || isAssigning}
+                          onClick={async () => {
+                            if (!selectedExistingDocId) return
+                            setIsAssigning(true)
+                            try {
+                              await onMoveToFolder(selectedExistingDocId, activeFolder.id)
+                              setShowAddModal(false)
+                              setSelectedExistingDocId('')
+                            } catch (err) {
+                              console.error("Failed to assign folder:", err)
+                            } finally {
+                              setIsAssigning(false)
+                            }
+                          }}
+                          className="px-4 py-2.5 text-xs font-bold text-white bg-violet-600 hover:bg-violet-750 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all flex items-center gap-1.5"
+                        >
+                          {isAssigning && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          Add to Folder
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
