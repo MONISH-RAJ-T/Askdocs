@@ -2,21 +2,16 @@ import sys
 import os
 import spaces
 import gradio as gr
+from fastapi import FastAPI, BackgroundTasks, Depends, status
+from contextlib import asynccontextmanager
 
-# Ensure the parent directory is in the python path
+# Ensure the embedding-service root is in the python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Import everything we need from the existing FastAPI app modules
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import Header, HTTPException, BackgroundTasks, status, Depends
-from pydantic import BaseModel
-
 from app.services.embedder import get_embedder
-from app.services.extractor import extract_text_from_pdf_bytes
-from app.services.chunker import RecursiveCharacterTextSplitter
-from app.db_writer import get_supabase_client, save_batch_chunks, finalize_document_status
 from app.main import process_document_task, verify_api_key, EmbedRequest, EmbedResponse, ProcessRequest
 
 # --- ZeroGPU requirement: at least one @spaces.GPU function wired to a Gradio event ---
@@ -47,15 +42,14 @@ with gr.Blocks(title="AskDocs Embedding Service") as demo:
     out = gr.Textbox(visible=False)
     btn.click(fn=dummy_gpu_keepalive, inputs=[], outputs=[out])
 
-# --- Register custom FastAPI routes on Gradio's internal FastAPI app ---
-# Gradio Blocks exposes the underlying FastAPI app via demo.app
-# We add our REST API endpoints here so they coexist with the Gradio UI
+# --- Create the main FastAPI app and define our API routes on it ---
+app = FastAPI(title="AskDocs Embedding Service")
 
-@demo.app.get("/health")
+@app.get("/health")
 def health_check():
     return {"status": "healthy"}
 
-@demo.app.post("/embed", response_model=EmbedResponse)
+@app.post("/embed", response_model=EmbedResponse)
 def embed_endpoint(payload: EmbedRequest, _=Depends(verify_api_key)):
     """Exposes embedding generation. Supports batching queries and passages."""
     embedder = get_embedder()
@@ -65,7 +59,7 @@ def embed_endpoint(payload: EmbedRequest, _=Depends(verify_api_key)):
         embeddings = embedder.embed_passages(payload.texts)
     return EmbedResponse(embeddings=embeddings)
 
-@demo.app.post("/process", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/process", status_code=status.HTTP_202_ACCEPTED)
 def process_endpoint(payload: ProcessRequest, background_tasks: BackgroundTasks, _=Depends(verify_api_key)):
     """Fire-and-forget endpoint that queues PDF processing in a background task."""
     background_tasks.add_task(
@@ -77,11 +71,12 @@ def process_endpoint(payload: ProcessRequest, background_tasks: BackgroundTasks,
     )
     return {"message": "Document queued for processing."}
 
+# --- Mount Gradio INTO the FastAPI app at /gradio path ---
+# Our API routes are at root (/health, /embed, /process)
+# Gradio UI is at /gradio
+app = gr.mount_gradio_app(app, demo, path="/gradio")
+
 # --- Eagerly load the embedding model at import time ---
 print("Pre-loading embedding model...")
 get_embedder()
 print("Embedding model loaded and ready.")
-
-# --- Launch using Gradio's native launcher (required for ZeroGPU) ---
-if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
